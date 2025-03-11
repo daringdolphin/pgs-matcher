@@ -19,7 +19,7 @@ import "./globals.css"
 const inter = Inter({ subsets: ["latin"] })
 
 export const metadata: Metadata = {
-  title: "Receipt AI",
+  title: "PG&S EF Matcher",
   description: "A full-stack web app template."
 }
 
