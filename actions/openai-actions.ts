@@ -29,14 +29,58 @@ export interface MatchEmissionFactorsRequest {
 }
 
 /**
+ * Simple logger function for OpenAI requests
+ */
+function logOpenAIRequest(
+  type: 'request' | 'response' | 'error',
+  batchInfo: { batchNumber?: number, batchSize?: number, totalBatches?: number } = {},
+  details?: any,
+  startTime?: number
+) {
+  const timestamp = new Date().toISOString();
+  const timeElapsed = startTime ? `(${Date.now() - startTime}ms)` : '';
+  
+  switch (type) {
+    case 'request':
+      console.log(`[${timestamp}] 🚀 OpenAI Request - Batch ${batchInfo.batchNumber}/${batchInfo.totalBatches} (${batchInfo.batchSize} rows)`);
+      if (process.env.NODE_ENV === 'development' && details) {
+        console.log('Request details:', {
+          model: details.model,
+          promptLength: details.promptLength,
+          examplesCount: details.examplesCount
+        });
+      }
+      break;
+    case 'response':
+      console.log(`[${timestamp}] ✅ OpenAI Response received ${timeElapsed} - Batch ${batchInfo.batchNumber}/${batchInfo.totalBatches}`);
+      if (process.env.NODE_ENV === 'development' && details) {
+        console.log('Response details:', {
+          finishReason: details.finishReason,
+          matchesCount: details.matchesCount,
+          promptTokens: details.usage?.prompt_tokens,
+          completionTokens: details.usage?.completion_tokens,
+          totalTokens: details.usage?.total_tokens
+        });
+      }
+      break;
+    case 'error':
+      console.error(`[${timestamp}] ❌ OpenAI Error ${timeElapsed} - Batch ${batchInfo.batchNumber}/${batchInfo.totalBatches}`, details);
+      break;
+  }
+}
+
+/**
  * Server action to match emission factors using OpenAI
  * 
  * @param data The data containing headers, descriptions and rows to process
  * @returns ActionState containing the matched emission factors
  */
 export async function matchEmissionFactorsAction(
-  data: MatchEmissionFactorsRequest 
+  data: MatchEmissionFactorsRequest,
+  batchInfo?: { batchNumber: number, totalBatches: number }
 ): Promise<ActionState<EmissionFactorMatch[]>> {
+  const startTime = Date.now();
+  
   try {
     const { headers, headerDescriptions, rows, customExamples } = data;
     
@@ -61,6 +105,17 @@ export async function matchEmissionFactorsAction(
       customExamples // Pass custom examples if available
     );
     
+    // Log the request
+    logOpenAIRequest('request', {
+      batchNumber: batchInfo?.batchNumber || 1,
+      totalBatches: batchInfo?.totalBatches || 1,
+      batchSize: rows.length
+    }, {
+      model: "o3-mini-2025-01-31",
+      promptLength: systemMessage.length + userMessage.length,
+      examplesCount: customExamples?.length || 0
+    }, startTime);
+    
     // Call OpenAI API with o3-mini model
     const response = await openai.chat.completions.create({
       model: "o3-mini-2025-01-31",
@@ -74,9 +129,26 @@ export async function matchEmissionFactorsAction(
       }
     });
     
+    // Log the response
+    logOpenAIRequest('response', {
+      batchNumber: batchInfo?.batchNumber || 1,
+      totalBatches: batchInfo?.totalBatches || 1
+    }, {
+      finishReason: response.choices[0].finish_reason,
+      matchesCount: rows.length,
+      usage: response.usage
+    }, startTime);
+    
     // Check for refusal
     if (response.choices[0].message.refusal) {
-      console.error("Model refused to generate response:", response.choices[0].message.refusal);
+      logOpenAIRequest('error', {
+        batchNumber: batchInfo?.batchNumber || 1,
+        totalBatches: batchInfo?.totalBatches || 1
+      }, {
+        type: 'refusal',
+        details: response.choices[0].message.refusal
+      }, startTime);
+      
       return {
         isSuccess: false,
         message: "The model refused to process this request. This might be due to content policy restrictions."
@@ -85,6 +157,14 @@ export async function matchEmissionFactorsAction(
     
     // Check finish reason
     if (response.choices[0].finish_reason === "length") {
+      logOpenAIRequest('error', {
+        batchNumber: batchInfo?.batchNumber || 1,
+        totalBatches: batchInfo?.totalBatches || 1
+      }, {
+        type: 'length_limit',
+        details: 'Response truncated due to length constraints'
+      }, startTime);
+      
       return {
         isSuccess: false,
         message: "The response was truncated due to length constraints. Try processing fewer rows at once."
@@ -92,6 +172,14 @@ export async function matchEmissionFactorsAction(
     }
 
     if (response.choices[0].finish_reason === "content_filter") {
+      logOpenAIRequest('error', {
+        batchNumber: batchInfo?.batchNumber || 1,
+        totalBatches: batchInfo?.totalBatches || 1
+      }, {
+        type: 'content_filter',
+        details: 'Response filtered due to content policy'
+      }, startTime);
+      
       return {
         isSuccess: false,
         message: "The response was filtered due to content policy. Try adjusting your input data."
@@ -106,7 +194,15 @@ export async function matchEmissionFactorsAction(
       
       // Ensure parsedResponse is an object
       if (!parsedResponse || typeof parsedResponse !== 'object') {
-        console.error("Invalid response format - not an object:", responseContent);
+        logOpenAIRequest('error', {
+          batchNumber: batchInfo?.batchNumber || 1,
+          totalBatches: batchInfo?.totalBatches || 1
+        }, {
+          type: 'invalid_format',
+          details: 'Response is not a valid object',
+          response: responseContent
+        }, startTime);
+        
         return {
           isSuccess: false,
           message: "Failed to parse response: invalid format"
@@ -134,7 +230,15 @@ export async function matchEmissionFactorsAction(
         if (arrayKey) {
           matches = parsedResponse[arrayKey];
         } else {
-          console.error("Could not find matches array in response:", parsedResponse);
+          logOpenAIRequest('error', {
+            batchNumber: batchInfo?.batchNumber || 1,
+            totalBatches: batchInfo?.totalBatches || 1
+          }, {
+            type: 'no_matches',
+            details: 'Could not find matches array in response',
+            response: parsedResponse
+          }, startTime);
+          
           return {
             isSuccess: false,
             message: "Failed to find matches in the response"
@@ -144,7 +248,14 @@ export async function matchEmissionFactorsAction(
       
       // Ensure we have matches for each row
       if (matches.length === 0) {
-        console.error("Empty matches array in response");
+        logOpenAIRequest('error', {
+          batchNumber: batchInfo?.batchNumber || 1,
+          totalBatches: batchInfo?.totalBatches || 1
+        }, {
+          type: 'empty_matches',
+          details: 'Empty matches array in response'
+        }, startTime);
+        
         return {
           isSuccess: false,
           message: "No matches returned in the response"
@@ -187,24 +298,114 @@ export async function matchEmissionFactorsAction(
         };
       });
       
+      // Log successful completion with timing
+      const totalTime = Date.now() - startTime;
+      console.log(`[${new Date().toISOString()}] ✨ Batch ${batchInfo?.batchNumber || 1}/${batchInfo?.totalBatches || 1} completed in ${totalTime}ms - ${matches.length} matches processed`);
+      
       return {
         isSuccess: true,
         message: "Successfully matched emission factors",
         data: matches
       };
     } catch (error) {
-      console.error("Error parsing OpenAI response:", error);
-      console.error("Raw response:", responseContent);
+      logOpenAIRequest('error', {
+        batchNumber: batchInfo?.batchNumber || 1,
+        totalBatches: batchInfo?.totalBatches || 1
+      }, {
+        type: 'parse_error',
+        details: error,
+        response: responseContent
+      }, startTime);
+      
       return {
         isSuccess: false,
         message: "Failed to parse the API response"
       };
     }
   } catch (error) {
-    console.error("Error in matchEmissionFactorsAction:", error);
+    logOpenAIRequest('error', {
+      batchNumber: batchInfo?.batchNumber || 1,
+      totalBatches: batchInfo?.totalBatches || 1
+    }, {
+      type: 'general_error',
+      details: error
+    }, startTime);
+    
     return {
       isSuccess: false,
       message: error instanceof Error ? error.message : "Failed to match emission factors"
+    };
+  }
+}
+
+/**
+ * Process multiple batches of emission factor matching requests in parallel
+ */
+export async function matchEmissionFactorsParallelAction(
+  data: MatchEmissionFactorsRequest,
+  batchSize: number = 50
+): Promise<ActionState<EmissionFactorMatch[]>> {
+  try {
+    const { headers, headerDescriptions, rows, customExamples } = data;
+    
+    // Split rows into batches
+    const batches: Record<string, any>[][] = [];
+    for (let i = 0; i < rows.length; i += batchSize) {
+      batches.push(rows.slice(i, i + batchSize));
+    }
+    
+    const totalBatches = batches.length;
+    console.log(`[${new Date().toISOString()}] 🎯 Starting parallel processing of ${totalBatches} batches`);
+    
+    // Process all batches in parallel
+    const batchPromises = batches.map((batchRows, index) => {
+      const batchData: MatchEmissionFactorsRequest = {
+        headers,
+        headerDescriptions,
+        rows: batchRows,
+        customExamples
+      };
+      
+      return matchEmissionFactorsAction(batchData, {
+        batchNumber: index + 1,
+        totalBatches
+      });
+    });
+    
+    // Wait for all batches to complete
+    const batchResults = await Promise.all(batchPromises);
+    
+    // Check if any batch failed
+    const failedBatches = batchResults.filter(result => !result.isSuccess);
+    if (failedBatches.length > 0) {
+      const errorMessages = failedBatches
+        .map(batch => batch.message)
+        .join("; ");
+      
+      return {
+        isSuccess: false,
+        message: `Failed to process ${failedBatches.length} batch(es): ${errorMessages}`
+      };
+    }
+    
+    // Combine all successful results
+    const allMatches = batchResults.reduce<EmissionFactorMatch[]>(
+      (acc, result) => [...acc, ...(result.data || [])],
+      []
+    );
+    
+    console.log(`[${new Date().toISOString()}] ✨ Completed parallel processing - ${allMatches.length} total matches`);
+    
+    return {
+      isSuccess: true,
+      message: `Successfully processed ${totalBatches} batches with ${allMatches.length} matches`,
+      data: allMatches
+    };
+  } catch (error) {
+    console.error(`[${new Date().toISOString()}] ❌ Error in parallel processing:`, error);
+    return {
+      isSuccess: false,
+      message: error instanceof Error ? error.message : "Failed to process batches in parallel"
     };
   }
 } 

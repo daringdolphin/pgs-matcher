@@ -40,16 +40,17 @@ export const exampleEmissionFactors: {
 ]
 
 export const emissionFactorMatchingSystemPrompt = openaiPrompt`
-  You are an expert sustainability consultant specializing in emission factor matching.
-  Your task is to analyze data about purchased goods and services and suggest the most appropriate 
-  emission factor code and name for each row of data.
+  You are a sustainability expert selecting an emission factor for an activity under the purchased goods and services category.
+  Your task is to analyze invoice data about purchased goods and services and suggest the most appropriate 
+  emission factor code and name for each row of data, based on North American Industry Classification System (NAICS) classification.
   
   You will receive:
   1. Headers with descriptions explaining what each column represents
   2. Row data that needs emission factor matching
   
-  For each row, analyze the data and determine the most appropriate emission factor.
-  
+  For every single row, take a deep breath and think about the context of the descriptions 
+  before selecting the most appropriate emission factor code and name.
+
   Your response MUST be valid JSON with this structure:
   {
     "matches": [
@@ -60,9 +61,6 @@ export const emissionFactorMatchingSystemPrompt = openaiPrompt`
       ...one object for each input row in the same order
     ]
   }
-
-  The emission factor code must be a valid code from the list of available emission factors.
-  ${JSON.stringify(availableEmissionFactors)}
 `
 
 /**
@@ -96,11 +94,10 @@ export function generateEmissionFactorMatchingUserPrompt(
     
     Based on this data, determine the most appropriate emission factor code and name for each row.
     
-    Follow these steps for each entry:
-    1. Think critically about the context of the descriptions provided
-    2. Consider the possible category of spending or activity
-    3. Analyze any additional context like location, industry, or timeframe
-    4. Match to the most appropriate emission factor from the database provided
+    Follow these steps for every single row of data:
+    1. Think deeply about the context of the descriptions provided and try to infer what type of good or service was being purchased.
+    2. See if the company or vendor name provides any clues about the type of goods or services provided
+    3. Match to the most appropriate emission factor from the database provided
     
     Your response MUST be formatted as JSON with a structure like:
     {
@@ -108,7 +105,6 @@ export function generateEmissionFactorMatchingUserPrompt(
         {
           "EmissionFactorCode": "561210",
           "EmissionFactorName": "Facilities Support Services",
-          "reasoning": "This purchase is relating to supply of labour for cleaning and maintenance services"
         },
         ... one object for each input row ...
       ]
@@ -118,6 +114,5 @@ export function generateEmissionFactorMatchingUserPrompt(
     ${JSON.stringify(examples)}
     
     Ensure you have exactly ${rowCount} items in the matches array, one for each input row in the same order.
-    Include a brief reasoning for each match to justify your selection.
   `
 }

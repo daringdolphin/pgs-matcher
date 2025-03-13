@@ -145,22 +145,24 @@ export function ExampleCollectionModal({
   }
 
   const handleSubmit = () => {
-    // Check if all rows have a selected factor
-    const allFactorsSelected = Object.values(selectedFactors).every(
+    // Check if any rows have a selected factor
+    const anyFactorsSelected = Object.values(selectedFactors).some(
       factor => factor !== null
     )
 
-    if (!allFactorsSelected) {
+    if (!anyFactorsSelected) {
       setShowWarning(true)
       return
     }
 
-    // Transform the selected factors into the expected format
-    const examples: ExampleMatch[] = exampleRows.map(row => ({
-      rowData: row.rowData,
-      EmissionFactorCode: selectedFactors[row.rowIndex]?.code || "",
-      EmissionFactorName: selectedFactors[row.rowIndex]?.name || ""
-    }))
+    // Transform the selected factors into the expected format, only including matched examples
+    const examples: ExampleMatch[] = exampleRows
+      .filter(row => selectedFactors[row.rowIndex] !== null)
+      .map(row => ({
+        rowData: row.rowData,
+        EmissionFactorCode: selectedFactors[row.rowIndex]?.code || "",
+        EmissionFactorName: selectedFactors[row.rowIndex]?.name || ""
+      }))
 
     onSubmit(examples)
   }
@@ -168,20 +170,14 @@ export function ExampleCollectionModal({
   // Handle dialog close attempt
   const handleDialogChange = (open: boolean) => {
     if (!open) {
-      // Trying to close the dialog
-      const allFactorsSelected = Object.values(selectedFactors).every(
-        factor => factor !== null
-      )
-
-      if (!allFactorsSelected) {
-        setShowWarning(true)
-        // Don't allow closing the dialog if examples are not matched
-        return
-      }
-
-      // If all factors are selected, allow dialog to close and call onClose
+      // Allow closing the dialog without examples
       onClose()
     }
+  }
+
+  // Skip examples and close the modal
+  const handleSkipExamples = () => {
+    onSubmit([]) // Submit empty array for examples
   }
 
   // Navigation functions
@@ -206,31 +202,28 @@ export function ExampleCollectionModal({
   const matchedCount = Object.values(selectedFactors).filter(
     f => f !== null
   ).length
-  const allMatched = matchedCount === exampleRows.length
+  const anyMatched = matchedCount > 0
 
   return (
     <Dialog open={isOpen} onOpenChange={handleDialogChange}>
       <DialogContent className="max-h-[90vh] max-w-2xl overflow-y-auto">
         <DialogHeader>
-          <DialogTitle>Provide Example Matches (Required)</DialogTitle>
+          <DialogTitle>Provide Example Matches (Recommended)</DialogTitle>
           <DialogDescription>
-            You must match all sample rows with appropriate emission factors.
-            These examples are required and will help improve the AI's accuracy
-            in matching the remaining rows.
+            Matching sample rows with appropriate emission factors will improve
+            the AI's accuracy in matching your data.
           </DialogDescription>
         </DialogHeader>
 
         <div className="space-y-6">
           {showWarning && (
-            <Alert variant="destructive">
-              <AlertCircle className="size-4" />
-              <AlertTitle>Examples Required</AlertTitle>
+            <Alert variant="default" className="border-blue-200 bg-blue-50">
+              <AlertCircle className="size-4 text-blue-500" />
+              <AlertTitle>No Examples Selected</AlertTitle>
               <AlertDescription>
-                You must provide matches for all {exampleRows.length} examples
-                before continuing.
-                {matchedCount > 0
-                  ? ` (${matchedCount} of ${exampleRows.length} matched so far)`
-                  : ""}
+                You haven't provided any examples yet. Examples help improve
+                matching accuracy. Would you like to provide at least one
+                example or skip this step?
               </AlertDescription>
             </Alert>
           )}
@@ -240,26 +233,6 @@ export function ExampleCollectionModal({
               <div className="flex items-center justify-between">
                 <div className="text-lg font-medium">
                   Example {currentExampleIndex + 1} of {exampleRows.length}
-                </div>
-                <div className="flex items-center space-x-2">
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={goToPreviousExample}
-                    disabled={currentExampleIndex === 0}
-                  >
-                    <ChevronLeft className="mr-1 size-4" />
-                    Previous
-                  </Button>
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={goToNextExample}
-                    disabled={currentExampleIndex === exampleRows.length - 1}
-                  >
-                    Next
-                    <ChevronRight className="ml-1 size-4" />
-                  </Button>
                 </div>
               </div>
 
@@ -296,22 +269,67 @@ export function ExampleCollectionModal({
                   }
                 />
               </div>
+
+              <div className="mt-4 border-t pt-4">
+                <div className="flex items-center justify-end">
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={goToPreviousExample}
+                    disabled={currentExampleIndex === 0}
+                    className="w-28"
+                  >
+                    <ChevronLeft className="mr-1 size-4" />
+                    Previous
+                  </Button>
+
+                  <div className="text-muted-foreground mx-2 text-sm">
+                    {currentExampleIndex + 1} of {exampleRows.length}
+                  </div>
+
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={goToNextExample}
+                    disabled={currentExampleIndex === exampleRows.length - 1}
+                    className="w-28"
+                  >
+                    Next
+                    <ChevronRight className="ml-1 size-4" />
+                  </Button>
+                </div>
+              </div>
             </div>
           )}
 
-          <DialogFooter className="flex items-center justify-between">
+          <DialogFooter className="mt-4 flex flex-col space-y-2 border-t pt-4 sm:flex-row sm:justify-between sm:space-y-0">
             <div className="text-muted-foreground text-sm">
               {matchedCount} of {exampleRows.length} examples matched
-              {!allMatched && (
-                <span className="font-medium text-red-500">
+              {matchedCount > 0 && (
+                <span className="font-medium text-green-500">
                   {" "}
-                  (all required)
+                  (will use matched examples only)
                 </span>
               )}
             </div>
-            <Button type="button" onClick={handleSubmit} disabled={!allMatched}>
-              Use These Examples
-            </Button>
+            <div className="flex space-x-2">
+              <Button
+                type="button"
+                variant="outline"
+                onClick={handleSkipExamples}
+                className="text-gray-500"
+              >
+                Skip Examples
+              </Button>
+              <Button
+                type="button"
+                onClick={handleSubmit}
+                disabled={!anyMatched}
+                className="bg-green-600 hover:bg-green-700"
+              >
+                Use These Examples
+              </Button>
+            </div>
           </DialogFooter>
         </div>
       </DialogContent>

@@ -17,14 +17,17 @@ import { Textarea } from "@/components/ui/textarea"
 import { Label } from "@/components/ui/label"
 
 import { parseFile, chunkArray, generateExcelFile } from "@/lib/excel-utils"
-import { ProgressTracker } from "./_components/progress-tracker"
-import { ResultsDownloader } from "./_components/results-downloader"
-import { ResultsPreview } from "./_components/results-preview"
+import { ProgressTracker } from "./emission-matcher/_components/progress-tracker"
+import { ResultsDownloader } from "./emission-matcher/_components/results-downloader"
+import { ResultsPreview } from "./emission-matcher/_components/results-preview"
 import {
   ExampleCollectionModal,
   ExampleMatch
-} from "./_components/example-collection-modal"
-import { matchEmissionFactorsAction } from "@/actions/openai-actions"
+} from "./emission-matcher/_components/example-collection-modal"
+import {
+  matchEmissionFactorsAction,
+  matchEmissionFactorsParallelAction
+} from "@/actions/openai-actions"
 import {
   HeaderDescription,
   EmissionFactorMatch,
@@ -32,7 +35,7 @@ import {
 } from "@/types"
 import { availableEmissionFactors } from "@/lib/prompts/prompt-inputs"
 
-const DEFAULT_BATCH_SIZE = 20
+const DEFAULT_BATCH_SIZE = 25
 
 export default function EmissionMatcherPage() {
   // File and parsing state
@@ -77,6 +80,8 @@ export default function EmissionMatcherPage() {
     try {
       setError(null)
       setExamplesSubmitted(false)
+      setIsComplete(false)
+      setMatchedResults([])
 
       if (!e.target.files || e.target.files.length === 0) {
         return
@@ -188,7 +193,7 @@ export default function EmissionMatcherPage() {
     )
   }
 
-  // Process the data in batches
+  // Process the data in parallel batches
   const processData = useCallback(async () => {
     if (!fileData || !fileData.rows.length) {
       toast.error("No data to process")
@@ -247,62 +252,45 @@ export default function EmissionMatcherPage() {
         return serializedRow
       })
 
-      // Split rows into batches of size DEFAULT_BATCH_SIZE
-      const batches = chunkArray(serializableRows, DEFAULT_BATCH_SIZE)
+      // Calculate total batches for progress tracking
+      const totalBatches = Math.ceil(
+        serializableRows.length / DEFAULT_BATCH_SIZE
+      )
 
       setProcessingStats({
         currentBatch: 0,
-        totalBatches: batches.length,
+        totalBatches,
         processedRows: 0,
         totalRows: fileData.rows.length
       })
 
-      // Process each batch
-      let allResults: Record<string, any>[] = []
-      let hasErrors = false
-
-      for (let i = 0; i < batches.length; i++) {
-        const batchRows = batches[i]
-
-        // Update processing stats
-        setProcessingStats({
-          currentBatch: i + 1,
-          totalBatches: batches.length,
-          processedRows: Math.min(
-            (i + 1) * DEFAULT_BATCH_SIZE,
-            fileData.rows.length
-          ),
-          totalRows: fileData.rows.length
-        })
-
-        // Call the OpenAI action with the batch
-        const result = await matchEmissionFactorsAction({
+      // Process all data in parallel batches
+      const result = await matchEmissionFactorsParallelAction(
+        {
           headers: fileData.headers,
           headerDescriptions,
-          rows: batchRows,
+          rows: serializableRows,
           customExamples: userExamples || undefined
-        })
+        },
+        DEFAULT_BATCH_SIZE
+      )
 
-        if (!result.isSuccess || !result.data) {
-          toast.error(`Batch ${i + 1} error: ${result.message}`)
-          hasErrors = true
+      if (!result.isSuccess || !result.data) {
+        setError(result.message)
+        toast.error(result.message)
 
-          // Add placeholder data for the failed batch
-          const placeholderResults = batchRows.map(row => {
-            return {
-              ...row,
-              EmissionFactorCode: "ERROR",
-              EmissionFactorName: `Failed: ${result.message}`
-            }
-          })
+        // Create placeholder results for all rows
+        const placeholderResults = serializableRows.map(row => ({
+          ...row,
+          EmissionFactorCode: "ERROR",
+          EmissionFactorName: `Failed: ${result.message}`
+        }))
 
-          allResults = [...allResults, ...placeholderResults]
-          continue
-        }
-
+        setMatchedResults(placeholderResults)
+      } else {
         // Combine the original row data with the matched emission factors
-        const batchResults = batchRows.map((row, index) => {
-          const match = result.data?.[index] || {
+        const processedResults = serializableRows.map((row, index) => {
+          const match = result.data[index] || {
             EmissionFactorCode: "ERROR",
             EmissionFactorName: "Failed to match"
           }
@@ -314,25 +302,19 @@ export default function EmissionMatcherPage() {
           }
         })
 
-        // Add the results to our collection
-        allResults = [...allResults, ...batchResults]
-      }
-
-      // Set the final results
-      setMatchedResults(allResults)
-      setIsComplete(true)
-      setExamplesSubmitted(false)
-
-      if (hasErrors) {
-        setError(
-          "Some batches encountered errors. The results include placeholders for failed matches."
-        )
-        toast.warning(
-          "Processing completed with some errors. You can still download partial results."
-        )
-      } else {
+        setMatchedResults(processedResults)
         toast.success("Processing complete! You can now download the results.")
       }
+
+      // Update final stats
+      setProcessingStats(prev => ({
+        ...prev,
+        currentBatch: prev.totalBatches,
+        processedRows: fileData.rows.length
+      }))
+
+      setIsComplete(true)
+      setExamplesSubmitted(false)
     } catch (error) {
       console.error("Error processing data:", error)
       setError(
