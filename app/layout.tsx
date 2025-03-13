@@ -13,8 +13,7 @@ import "./globals.css"
 const inter = Inter({ subsets: ["latin"] })
 
 export const metadata: Metadata = {
-  title: "PG&S EF Matcher",
-  description: "A full-stack web app template."
+  title: "PG&S EF Matcher"
 }
 
 export default async function RootLayout({
@@ -23,16 +22,15 @@ export default async function RootLayout({
   children: React.ReactNode
 }) {
   return (
-    <html lang="en" suppressHydrationWarning>
+    <html lang="en" suppressHydrationWarning className={inter.className}>
       <body
+        suppressHydrationWarning
         className={cn(
-          "bg-background mx-auto min-h-screen w-full scroll-smooth antialiased",
-          inter.className
+          "bg-background mx-auto min-h-screen w-full scroll-smooth antialiased"
         )}
       >
         <Providers
           attribute="class"
-          defaultTheme="light"
           enableSystem={false}
           disableTransitionOnChange
         >
