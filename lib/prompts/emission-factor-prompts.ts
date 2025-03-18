@@ -51,6 +51,8 @@ export const emissionFactorMatchingSystemPrompt = openaiPrompt`
   For every single row, take a deep breath and think about the context of the descriptions 
   before selecting the most appropriate emission factor code and name.
 
+  If there are vendor names provided, try to infer the type of goods or services being purchased from the name.
+
   Your response MUST be valid JSON with this structure:
   {
     "matches": [
