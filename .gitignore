@@ -37,3 +37,9 @@ next-env.d.ts
 
 # clerk configuration (can include secrets)
 /.clerk/
+
+# cursor rules
+.cursorrules
+
+# cursor rules files
+/.cursor/rules/*.mdc
