@@ -16,11 +16,30 @@ import {
   FileSpreadsheet,
   AlertTriangle,
   Play,
-  RefreshCw
+  RefreshCw,
+  ListOrdered,
+  FileType,
+  FileCheck,
+  Download,
+  Brain
 } from "lucide-react"
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
 import { Textarea } from "@/components/ui/textarea"
 import { Label } from "@/components/ui/label"
+import {
+  Accordion,
+  AccordionContent,
+  AccordionItem,
+  AccordionTrigger
+} from "@/components/ui/accordion"
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow
+} from "@/components/ui/table"
 
 import { parseFile, chunkArray, generateExcelFile } from "@/lib/excel-utils"
 import { ProgressTracker } from "./emission-matcher/_components/progress-tracker"
@@ -367,13 +386,245 @@ export default function EmissionMatcherPage() {
     <div className="container mx-auto py-10">
       <Card className="mx-auto w-full max-w-4xl">
         <CardHeader>
-          <CardTitle className="text-2xl">Emission Factor Matcher</CardTitle>
+          <CardTitle className="text-2xl">
+            PG&S Emission Factor Matcher
+          </CardTitle>
           <CardDescription>
             Upload your data file to match emission factors for Purchased Goods
-            and Services
+            and Services from USEPA NAICS Supply Chain emission factors.
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-6">
+          {/* Instructions */}
+          <div className="space-y-4">
+            <Accordion type="single" collapsible className="w-full">
+              <AccordionItem value="how-it-works">
+                <AccordionTrigger className="text-lg font-medium">
+                  How It Works
+                </AccordionTrigger>
+                <AccordionContent>
+                  <ol className="ml-1 space-y-2 text-sm">
+                    <li className="flex items-start gap-2">
+                      <div className="mt-0.5 flex size-5 shrink-0 items-center justify-center rounded-full bg-blue-100 text-blue-600">
+                        <span className="text-xs">1</span>
+                      </div>
+                      <span>
+                        <strong>Upload your data</strong> - Drag and drop your
+                        purchase records as a spreadsheet or CSV file
+                      </span>
+                    </li>
+                    <li className="flex items-start gap-2">
+                      <div className="mt-0.5 flex size-5 shrink-0 items-center justify-center rounded-full bg-blue-100 text-blue-600">
+                        <span className="text-xs">2</span>
+                      </div>
+                      <span>
+                        <strong>Map your columns</strong> - Identify what
+                        information each column contains
+                      </span>
+                    </li>
+                    <li className="flex items-start gap-2">
+                      <div className="mt-0.5 flex size-5 shrink-0 items-center justify-center rounded-full bg-blue-100 text-blue-600">
+                        <span className="text-xs">3</span>
+                      </div>
+                      <span>
+                        <strong>Enhance with examples</strong> (optional) -
+                        Provide sample mappings to improve accuracy
+                      </span>
+                    </li>
+                    <li className="flex items-start gap-2">
+                      <div className="mt-0.5 flex size-5 shrink-0 items-center justify-center rounded-full bg-blue-100 text-blue-600">
+                        <span className="text-xs">4</span>
+                      </div>
+                      <span>
+                        <strong>AI-powered matching</strong> - System analyzes
+                        and matches items with appropriate emission factors
+                      </span>
+                    </li>
+                    <li className="flex items-start gap-2">
+                      <div className="mt-0.5 flex size-5 shrink-0 items-center justify-center rounded-full bg-blue-100 text-blue-600">
+                        <span className="text-xs">5</span>
+                      </div>
+                      <span>
+                        <strong>Download results</strong> - Get an Excel report
+                        with your data enriched with emission factors
+                      </span>
+                    </li>
+                  </ol>
+                </AccordionContent>
+              </AccordionItem>
+
+              <AccordionItem value="tips">
+                <AccordionTrigger className="text-lg font-medium">
+                  Tips for Best Results
+                </AccordionTrigger>
+                <AccordionContent>
+                  <ul className="space-y-4 text-sm">
+                    <li className="flex items-start gap-2">
+                      <FileType className="mt-0.5 size-4 shrink-0 text-blue-600" />
+                      <div className="w-full">
+                        <strong>Prepare your file properly</strong>
+                        <ul className="text-muted-foreground ml-4 mt-1 list-disc space-y-1">
+                          <li>Keep headers in the first row</li>
+                          <li>
+                            Include only columns relevant for emission factor
+                            matching (e.g., Vendor Name, Description, Category)
+                          </li>
+                        </ul>
+                        <div className="mt-3 text-xs">
+                          <strong>Example of file cleanup:</strong>
+                          <Table className="mt-2 border text-left">
+                            <TableHeader>
+                              <TableRow>
+                                <TableHead className="font-medium">
+                                  Field
+                                </TableHead>
+                                <TableHead className="bg-blue-50 font-medium">
+                                  Original
+                                </TableHead>
+                                <TableHead className="bg-green-50 font-medium">
+                                  Cleaned
+                                </TableHead>
+                              </TableRow>
+                            </TableHeader>
+                            <TableBody>
+                              <TableRow>
+                                <TableCell className="font-medium">
+                                  Index
+                                </TableCell>
+                                <TableCell>✓</TableCell>
+                                <TableCell>✓</TableCell>
+                              </TableRow>
+                              <TableRow>
+                                <TableCell className="font-medium">
+                                  Date
+                                </TableCell>
+                                <TableCell>✓</TableCell>
+                                <TableCell></TableCell>
+                              </TableRow>
+                              <TableRow>
+                                <TableCell className="font-medium">
+                                  Transaction Type
+                                </TableCell>
+                                <TableCell>✓</TableCell>
+                                <TableCell></TableCell>
+                              </TableRow>
+                              <TableRow>
+                                <TableCell className="font-medium">
+                                  No.
+                                </TableCell>
+                                <TableCell>✓</TableCell>
+                                <TableCell></TableCell>
+                              </TableRow>
+                              <TableRow>
+                                <TableCell className="font-medium">
+                                  Vendor Name
+                                </TableCell>
+                                <TableCell>✓</TableCell>
+                                <TableCell>✓</TableCell>
+                              </TableRow>
+                              <TableRow>
+                                <TableCell className="font-medium">
+                                  Memo/Description
+                                </TableCell>
+                                <TableCell>✓</TableCell>
+                                <TableCell>✓</TableCell>
+                              </TableRow>
+                              <TableRow>
+                                <TableCell className="font-medium">
+                                  Amount (in SGD)
+                                </TableCell>
+                                <TableCell>✓</TableCell>
+                                <TableCell></TableCell>
+                              </TableRow>
+                              <TableRow>
+                                <TableCell className="font-medium">
+                                  Amount (in USD)
+                                </TableCell>
+                                <TableCell>✓</TableCell>
+                                <TableCell></TableCell>
+                              </TableRow>
+                              <TableRow>
+                                <TableCell className="font-medium">
+                                  Location
+                                </TableCell>
+                                <TableCell>✓</TableCell>
+                                <TableCell></TableCell>
+                              </TableRow>
+                              <TableRow>
+                                <TableCell className="font-medium">
+                                  Class
+                                </TableCell>
+                                <TableCell>✓</TableCell>
+                                <TableCell></TableCell>
+                              </TableRow>
+                              <TableRow>
+                                <TableCell className="font-medium">
+                                  Class description
+                                </TableCell>
+                                <TableCell>✓</TableCell>
+                                <TableCell>✓</TableCell>
+                              </TableRow>
+                              <TableRow>
+                                <TableCell className="font-medium">
+                                  EF Code
+                                </TableCell>
+                                <TableCell>✓</TableCell>
+                                <TableCell></TableCell>
+                              </TableRow>
+                              <TableRow>
+                                <TableCell className="font-medium">
+                                  EF Name
+                                </TableCell>
+                                <TableCell>✓</TableCell>
+                                <TableCell></TableCell>
+                              </TableRow>
+                              <TableRow>
+                                <TableCell className="font-medium">
+                                  EF Value
+                                </TableCell>
+                                <TableCell>✓</TableCell>
+                                <TableCell></TableCell>
+                              </TableRow>
+                              <TableRow>
+                                <TableCell className="font-medium">
+                                  Emissions (kgco2e)
+                                </TableCell>
+                                <TableCell>✓</TableCell>
+                                <TableCell></TableCell>
+                              </TableRow>
+                            </TableBody>
+                          </Table>
+                        </div>
+                      </div>
+                    </li>
+                    <li className="flex items-start gap-2">
+                      <ListOrdered className="mt-0.5 size-4 shrink-0 text-blue-600" />
+                      <span>
+                        <strong>Maintain an index column</strong> to track which
+                        emission factors match to which original transactions
+                      </span>
+                    </li>
+                    <li className="flex items-start gap-2">
+                      <FileCheck className="mt-0.5 size-4 shrink-0 text-blue-600" />
+                      <span>
+                        <strong>Process in batches</strong> of 500-1000 rows for
+                        optimal performance
+                      </span>
+                    </li>
+                    <li className="flex items-start gap-2">
+                      <AlertTriangle className="mt-0.5 size-4 shrink-0 text-blue-600" />
+                      <span>
+                        <strong>Remove irrelevant data</strong> that won't help
+                        determine emission factors (dates, transaction numbers,
+                        etc.)
+                      </span>
+                    </li>
+                  </ul>
+                </AccordionContent>
+              </AccordionItem>
+            </Accordion>
+          </div>
+
           {/* File Upload */}
           <div className="space-y-4">
             <div className="flex items-center gap-4">
