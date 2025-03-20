@@ -13,35 +13,39 @@ export const exampleEmissionFactors: {
 }[] = [
   {
     rowData:
-      "Product: Soybeans, Quantity: 1000 kg, Description: Raw soybeans for processing",
-    EmissionFactorCode: "111110",
-    EmissionFactorName: "Soybean Farming"
+      "SUPPLY 2 CLEANERS AT DERBY ROOM TOILET ON 24/03/2024 FROM 4PM TO 10PM (PO NO. 4500014312)-CS/23753/04",
+    EmissionFactorCode: "561720",
+    EmissionFactorName: "Janitorial Services"
   },
   {
-    rowData: "Product: Corn, Quantity: 2000 kg, Description: Feed corn",
-    EmissionFactorCode: "111150",
-    EmissionFactorName: "Corn Farming"
+    rowData:
+      "RENTAL OF RC SCRUBBER MACHINE FOR CROSS STREET EXCHANGE -JUN 2024 (CS/23885/06)",
+    EmissionFactorCode: "532490",
+    EmissionFactorName:
+      "Other Commercial and Industrial Machinery and Equipment Rental and Leasing"
   },
   {
-    rowData: "Product: Apples, Quantity: 500 kg, Description: Fresh apples",
-    EmissionFactorCode: "111331",
-    EmissionFactorName: "Apple Orchards"
+    rowData:
+      "PEST CONTROL FOR GENERAL BOOKLICE AT LEVEL 17 & 20, 8 CROSS STREET (FM/39488/07)",
+    EmissionFactorCode: "561710",
+    EmissionFactorName: "Exterminating and Pest Control Services"
   },
   {
-    rowData: "Product: Rice, Quantity: 1500 kg, Description: Raw rice grain",
-    EmissionFactorCode: "111160",
-    EmissionFactorName: "Rice Farming"
+    rowData:
+      "SECURITY SERVICES AT F1 PIT BUILDING FROM 01/08/2024 TO 15/08/2024",
+    EmissionFactorCode: "561612",
+    EmissionFactorName: "Security Guards and Patrol Services"
   },
   {
-    rowData: "Product: Wheat, Quantity: 3000 kg, Description: Wheat grain",
-    EmissionFactorCode: "111140",
-    EmissionFactorName: "Wheat Farming"
+    rowData: "LIFT MAINTENANCE AT F1 PIT BUILDING-SEP 2024 (FM/41245/10)",
+    EmissionFactorCode: "238290",
+    EmissionFactorName: "Other Building Equipment Contractors"
   }
 ]
 
 export const emissionFactorMatchingSystemPrompt = openaiPrompt`
   You are a sustainability expert selecting an emission factor for an activity under the purchased goods and services category.
-  Your task is to analyze invoice data about purchased goods and services and suggest the most appropriate 
+  Your task is to analyze invoice data about purchased goods and services and categorize them to the most appropriate 
   emission factor code and name for each row of data, based on North American Industry Classification System (NAICS) classification.
   
   You will receive:
@@ -51,7 +55,7 @@ export const emissionFactorMatchingSystemPrompt = openaiPrompt`
   For every single row, take a deep breath and think about the context of the descriptions 
   before selecting the most appropriate emission factor code and name.
 
-  If there are vendor names provided, try to infer the type of goods or services being purchased from the name.
+  If there are vendor names provided, try to infer the type of goods or services being purchased from the name, and use that to guide your selection.
 
   Your response MUST be valid JSON with this structure:
   {
