@@ -170,7 +170,7 @@ export function ExampleCollectionModal({
   // Handle dialog close attempt
   const handleDialogChange = (open: boolean) => {
     if (!open) {
-      // Allow closing the dialog without examples
+      // Simply close the dialog without showing warnings
       onClose()
     }
   }
@@ -202,16 +202,16 @@ export function ExampleCollectionModal({
   const matchedCount = Object.values(selectedFactors).filter(
     f => f !== null
   ).length
-  const anyMatched = matchedCount > 0
 
   return (
     <Dialog open={isOpen} onOpenChange={handleDialogChange}>
-      <DialogContent className="max-h-[90vh] max-w-2xl overflow-y-auto">
+      <DialogContent className="max-h-[90vh] max-w-4xl overflow-y-auto">
         <DialogHeader>
-          <DialogTitle>Provide Example Matches (Recommended)</DialogTitle>
+          <DialogTitle>Provide Example Matches (Optional)</DialogTitle>
           <DialogDescription>
             Matching sample rows with appropriate emission factors will improve
-            the AI's accuracy in matching your data.
+            the AI's accuracy in matching your data. You can provide examples
+            for some, all, or none of the rows.
           </DialogDescription>
         </DialogHeader>
 
@@ -237,17 +237,19 @@ export function ExampleCollectionModal({
               </div>
 
               {parsedRowData && (
-                <div className="bg-muted grid grid-cols-2 gap-4 rounded-md p-4">
-                  <div className="col-span-2 space-y-2">
+                <div className="bg-muted rounded-md p-4">
+                  <div className="space-y-2">
                     <div className="text-sm font-semibold">
                       Row {currentExample.rowIndex + 1}
                     </div>
                     {Object.entries(parsedRowData)
                       .filter(([key]) => key !== "raw") // Exclude the raw field
                       .map(([key, value], index) => (
-                        <div key={index} className="grid grid-cols-3 gap-2">
-                          <div className="text-sm font-medium">{key}:</div>
-                          <div className="col-span-2 break-words text-sm">
+                        <div key={index} className="grid grid-cols-12 gap-2">
+                          <div className="col-span-3 text-sm font-medium">
+                            {key}:
+                          </div>
+                          <div className="col-span-9 break-words text-sm">
                             {value}
                           </div>
                         </div>
@@ -324,10 +326,10 @@ export function ExampleCollectionModal({
               <Button
                 type="button"
                 onClick={handleSubmit}
-                disabled={!anyMatched}
+                disabled={!matchedCount}
                 className="bg-green-600 hover:bg-green-700"
               >
-                Use These Examples
+                {matchedCount > 0 ? "Use These Examples" : "Continue"}
               </Button>
             </div>
           </DialogFooter>

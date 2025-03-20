@@ -11,7 +11,13 @@ import {
 import { Input } from "@/components/ui/input"
 import { Button } from "@/components/ui/button"
 import { toast } from "sonner"
-import { Upload, FileSpreadsheet, AlertTriangle, Play } from "lucide-react"
+import {
+  Upload,
+  FileSpreadsheet,
+  AlertTriangle,
+  Play,
+  RefreshCw
+} from "lucide-react"
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
 import { Textarea } from "@/components/ui/textarea"
 import { Label } from "@/components/ui/label"
@@ -74,6 +80,35 @@ export default function EmissionMatcherPage() {
   )
   const [isComplete, setIsComplete] = useState(false)
   const [error, setError] = useState<string | null>(null)
+
+  // Reset function to clear all state and allow uploading a new file
+  const handleReset = useCallback(() => {
+    setFile(null)
+    setFileData(null)
+    setHeaderDescriptions({})
+    setIsExampleModalOpen(false)
+    setExampleRows([])
+    setUserExamples(null)
+    setExamplesSubmitted(false)
+    setIsProcessing(false)
+    setProcessingStats({
+      currentBatch: 0,
+      totalBatches: 0,
+      processedRows: 0,
+      totalRows: 0
+    })
+    setMatchedResults([])
+    setIsComplete(false)
+    setError(null)
+
+    // Reset the file input element
+    const fileInput = document.querySelector(
+      'input[type="file"]'
+    ) as HTMLInputElement
+    if (fileInput) fileInput.value = ""
+
+    toast.info("Reset complete. You can now upload a new file.")
+  }, [])
 
   // Handle file selection
   const handleFileSelect = async (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -181,16 +216,15 @@ export default function EmissionMatcherPage() {
     setIsExampleModalOpen(false)
     setExamplesSubmitted(true)
     toast.success(
-      "Example matches saved! Click 'Process Data' when you're ready to continue."
+      examples.length > 0
+        ? "Example matches saved! Click 'Process Data' when you're ready to continue."
+        : "Proceeding without examples. Click 'Process Data' when you're ready to continue."
     )
   }
 
-  // We no longer allow skipping examples - only used for modal close handling
+  // Update the modal close handler to simply close the modal without warnings
   const handleModalClose = () => {
-    // If we're closing the modal, remind the user that examples are required
-    toast.error(
-      "Examples are required. Please provide examples before proceeding."
-    )
+    setIsExampleModalOpen(false)
   }
 
   // Process the data in parallel batches
@@ -212,9 +246,9 @@ export default function EmissionMatcherPage() {
       return
     }
 
-    // Ensure examples have been provided
-    if (!userExamples || userExamples.length === 0) {
-      toast.error("You must provide examples before processing data")
+    // Ensure examples collection has been completed (even if no examples were provided)
+    if (!examplesSubmitted) {
+      toast.info("Please complete the examples step first")
       setIsExampleModalOpen(true)
       return
     }
@@ -270,7 +304,8 @@ export default function EmissionMatcherPage() {
           headers: fileData.headers,
           headerDescriptions,
           rows: serializableRows,
-          customExamples: userExamples || undefined
+          customExamples:
+            userExamples && userExamples.length > 0 ? userExamples : undefined
         },
         DEFAULT_BATCH_SIZE
       )
@@ -326,7 +361,7 @@ export default function EmissionMatcherPage() {
     } finally {
       setIsProcessing(false)
     }
-  }, [fileData, headerDescriptions, userExamples])
+  }, [fileData, headerDescriptions, userExamples, examplesSubmitted])
 
   return (
     <div className="container mx-auto py-10">
@@ -349,6 +384,18 @@ export default function EmissionMatcherPage() {
                 disabled={isProcessing}
                 className="flex-1"
               />
+
+              {(file || fileData) && (
+                <Button
+                  variant="outline"
+                  onClick={handleReset}
+                  disabled={isProcessing}
+                  className="gap-2"
+                >
+                  <RefreshCw className="size-4" />
+                  Start Over
+                </Button>
+              )}
             </div>
 
             {file && (
@@ -478,7 +525,7 @@ export default function EmissionMatcherPage() {
             ) : (
               <Button
                 onClick={processData}
-                disabled={!fileData || isProcessing || examplesSubmitted}
+                disabled={!fileData || isProcessing || !examplesSubmitted}
                 className="gap-2"
               >
                 <FileSpreadsheet className="size-4" />
@@ -507,6 +554,21 @@ export default function EmissionMatcherPage() {
           {/* Results Preview */}
           {isComplete && matchedResults.length > 0 && (
             <ResultsPreview results={matchedResults} visible={!isProcessing} />
+          )}
+
+          {/* New File Button */}
+          {isComplete && matchedResults.length > 0 && (
+            <div className="flex justify-center pt-6">
+              <Button
+                variant="outline"
+                onClick={handleReset}
+                className="gap-2"
+                size="lg"
+              >
+                <RefreshCw className="size-4" />
+                Process Another File
+              </Button>
+            </div>
           )}
         </CardContent>
       </Card>
